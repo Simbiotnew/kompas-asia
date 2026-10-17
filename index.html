@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kompas Asia</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Golos+Text:wght@400;500;600;700&family=Caveat:wght@600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Концепция: «экспедиционная карта». Тёмная ночная карта → табло выездов → туры-билеты → маршрут «на заказ» → открытки-отзывы → посадочный талон (заявка).
+   Тёмная тема — основная, светлая — «бумажная карта». */
+:root {
+  --bg: #0e1a15;        /* ночная степь */
+  --surface: #15241d;   /* билеты, карточки */
+  --raise: #1d2f26;     /* поля, плашки */
+  --fg: #e9efe6;
+  --muted: #9db1a4;
+  --line: #2b3f34;
+  --gold: #e0b856;      /* латунь компаса — главный акцент */
+  --on-gold: #1b1505;
+  --lake: #4cc6c4;      /* бирюза озёр — маршруты на карте */
+  --board: #0a120e;     /* табло всегда тёмное, как настоящее */
+  --board-fg: #f2cf6e;  /* янтарные буквы табло */
+  --font-display: "Dela Gothic One", "Arial Black", system-ui, sans-serif;
+  --font-body: "Golos Text", "Segoe UI", system-ui, sans-serif;
+  --font-hand: "Caveat", "Segoe Print", cursive;
+  --font-mono: "JetBrains Mono", ui-monospace, "Consolas", monospace;
+  --r: 18px;
+  --wrap: 1200px;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #edf1ea; --surface: #ffffff; --raise: #f4f7f1; --fg: #13201a; --muted: #56685d;
+    --line: #d2dbcd; --gold: #a57c18; --on-gold: #ffffff; --lake: #17807f; color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #edf1ea; --surface: #ffffff; --raise: #f4f7f1; --fg: #13201a; --muted: #56685d;
+  --line: #d2dbcd; --gold: #a57c18; --on-gold: #ffffff; --lake: #17807f; color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--fg); font: 400 16px/1.6 var(--font-body); overflow-x: hidden; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 400; line-height: 1.08; margin: 0; text-wrap: balance; }
+h2 { font-size: clamp(1.9rem, 5vw, 3.2rem); }
+h3 { font-size: 1.15rem; line-height: 1.2; }
+p { margin: 0; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+
+.wrap {
+  max-width: var(--wrap); margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.section { padding-block: clamp(64px, 9vw, 120px); }
+.mono { font-family: var(--font-mono); font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.hand { font-family: var(--font-hand); font-weight: 700; color: var(--gold); }
+.head { display: grid; gap: 14px; margin-bottom: 40px; max-width: 760px; }
+.head p:not(.mono) { color: var(--muted); font-size: 1.05rem; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 14px 24px; border-radius: 12px; border: 0; cursor: pointer; text-decoration: none;
+  font: 700 1rem var(--font-body); background: var(--gold); color: var(--on-gold);
+  transition: transform .2s, box-shadow .2s;
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -10px var(--gold); }
+.btn--line { background: transparent; color: var(--fg); box-shadow: inset 0 0 0 2px var(--line); }
+.btn--line:hover { box-shadow: inset 0 0 0 2px var(--gold); }
+.btn svg { width: 20px; height: 20px; flex: none; }
+
+/* ---------- Шапка ---------- */
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 9; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 10px; }
+.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.logo img { width: 42px; height: 42px; display: block; }
+.logo b { font: 400 .95rem/1 var(--font-display); letter-spacing: .03em; }
+.nav { display: flex; gap: 22px; }
+.nav a { text-decoration: none; font-weight: 600; font-size: .93rem; color: var(--muted); }
+.nav a:hover { color: var(--fg); }
+.header .btn { padding: 10px 16px; font-size: .9rem; }
+@media (max-width: 900px) { .nav { display: none; } }
+
+/* ---------- HERO: карта ---------- */
+.hero { position: relative; overflow: hidden; }
+.hero::before { /* топографические «горизонтали» */
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background:
+    repeating-radial-gradient(circle at 78% 30%, transparent 0 38px, var(--line) 39px 40px),
+    repeating-radial-gradient(circle at 10% 110%, transparent 0 46px, var(--line) 47px 48px);
+  mask-image: linear-gradient(180deg, #000 30%, transparent);
+}
+.hero .wrap { position: relative; display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.25fr); gap: 32px; align-items: center; padding-block: clamp(40px, 7vw, 80px); }
+.hero__text { display: grid; gap: 22px; min-width: 0; }
+.hero h1 { font-size: clamp(2.8rem, 7.4vw, 5.6rem); line-height: .98; }
+.hero h1 em { font-style: normal; color: var(--gold); }
+.hero .hand { font-size: clamp(1.7rem, 3.4vw, 2.4rem); line-height: 1; transform: rotate(-3deg); transform-origin: left; }
+.hero__lead { color: var(--muted); font-size: 1.08rem; max-width: 460px; }
+.hero__actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.hero__facts { display: flex; flex-wrap: wrap; gap: 6px 22px; }
+.hero__facts span b { color: var(--fg); }
+@media (max-width: 860px) { .hero .wrap { grid-template-columns: 1fr; } }
+
+.map { position: relative; min-width: 0; }
+.map > svg { width: 100%; height: auto; display: block; overflow: visible; }
+.map .grid line { stroke: var(--line); stroke-width: 1; }
+.map .grid text { fill: var(--muted); font: 500 15px var(--font-mono); }
+.map .route { fill: none; stroke: var(--lake); stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 6 8; opacity: .85; }
+.map .route--custom { stroke: var(--gold); opacity: .55; }
+.map .hub circle { fill: var(--gold); }
+.map .hub text { fill: var(--fg); font: 400 26px var(--font-display); }
+.map .pin { cursor: pointer; }
+.map .pin circle { fill: var(--bg); stroke: var(--lake); stroke-width: 3; transition: r .2s; }
+.map .pin text { fill: var(--fg); font: 600 21px var(--font-body); paint-order: stroke; stroke: var(--bg); stroke-width: 6px; stroke-linejoin: round; }
+.map .pin:hover circle, .map .pin:focus circle { fill: var(--lake); }
+.map .pin--custom circle { stroke: var(--gold); }
+.map .rose { color: var(--gold); }
+.map__legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; }
+.map__legend span { display: inline-flex; align-items: center; gap: 8px; }
+.map__legend i { width: 22px; border-top: 3px dashed var(--lake); }
+.map__legend i.g { border-color: var(--gold); }
+@media (prefers-reduced-motion: no-preference) {
+  .map .route { animation: dash 1.6s ease-out both; }
+  @keyframes dash { from { stroke-dashoffset: 300; opacity: 0; } to { stroke-dashoffset: 0; } }
+  .map .rose svg { animation: needle 2.2s ease-out both; transform-origin: 50% 50%; }
+  @keyframes needle { from { transform: rotate(-70deg); } 60% { transform: rotate(12deg); } to { transform: rotate(0); } }
+}
+
+/* ---------- Новый год: лента ---------- */
+.ny { border-block: 1px solid var(--line); background: var(--surface); }
+.ny .wrap { display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: center; justify-content: space-between; padding-block: 22px; }
+.ny p { font-weight: 600; }
+.ny p b { color: var(--gold); }
+.ny__dates { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.ny__dates span { font-family: var(--font-mono); font-size: .88rem; padding: 8px 12px; border: 1px dashed var(--line); border-radius: 8px; }
+
+/* ---------- Табло выездов ---------- */
+.board { background: var(--board); color: var(--board-fg); border-radius: var(--r); padding: clamp(18px, 3vw, 32px); border: 1px solid #1f2e26; box-shadow: inset 0 0 60px rgba(0,0,0,.6); }
+.board__days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 18px; scrollbar-width: thin; }
+.board__day {
+  flex: none; display: grid; gap: 2px; text-align: center; min-width: 74px; padding: 10px 12px; cursor: pointer;
+  border-radius: 10px; border: 1px solid #2a3a30; background: #111c16; color: #c9d3c3; font: 600 .8rem var(--font-mono); text-transform: uppercase;
+}
+.board__day b { font-size: 1.3rem; color: var(--board-fg); }
+.board__day[aria-pressed="true"] { background: var(--board-fg); color: #1b1505; border-color: var(--board-fg); }
+.board__day[aria-pressed="true"] b { color: #1b1505; }
+.board__scroll { overflow-x: auto; }
+.board table { width: 100%; min-width: 620px; border-collapse: collapse; font-family: var(--font-mono); }
+.board th { text-align: left; font-size: .7rem; letter-spacing: .12em; color: #7f8f84; font-weight: 500; padding: 0 12px 10px; border-bottom: 1px solid #22322a; }
+.board td { padding: 14px 12px; border-bottom: 1px solid #1a2620; font-size: .95rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.board td.dest { font-weight: 700; text-transform: uppercase; letter-spacing: .04em; white-space: normal; }
+.board td.price { color: #fff3c9; }
+.board td:last-child { text-align: right; }
+.board tr:hover td { background: #101a14; }
+.board__btn { font: 700 .8rem var(--font-mono); text-transform: uppercase; letter-spacing: .06em; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--board-fg); color: var(--board-fg); text-decoration: none; }
+.board__btn:hover { background: var(--board-fg); color: #1b1505; }
+.board__note { margin-top: 14px; font: 500 .8rem var(--font-mono); color: #7f8f84; }
+
+/* ---------- Туры-билеты ---------- */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
+.filter { padding: 9px 16px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--fg); font: 600 .92rem var(--font-body); cursor: pointer; }
+.filter[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+.tickets { display: grid; gap: 22px; }
+.ticket {
+  display: grid; grid-template-columns: 250px minmax(0, 1fr) 240px; position: relative;
+  background: var(--surface); border-radius: var(--r); overflow: hidden; border: 1px solid var(--line);
+  scroll-margin-top: 90px; transition: border-color .3s, box-shadow .3s;
+}
+.ticket.is-hit { border-color: var(--lake); box-shadow: 0 0 0 3px color-mix(in srgb, var(--lake) 35%, transparent); }
+.ticket__img { position: relative; min-height: 200px; background: var(--raise); }
+.ticket__img img, .ticket__img svg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.ticket__tag { position: absolute; left: 12px; top: 12px; background: var(--bg); color: var(--fg); border-radius: 8px; padding: 4px 10px; font: 700 .72rem var(--font-mono); text-transform: uppercase; letter-spacing: .06em; }
+.ticket__body { padding: 22px 24px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.ticket__from { color: var(--lake); }
+.ticket__desc { color: var(--muted); font-size: .96rem; }
+.ticket__sched { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .92rem; }
+.ticket__sched b { margin-right: 6px; }
+.ticket__sched span { font: 600 .78rem var(--font-mono); padding: 3px 8px; border-radius: 6px; background: var(--raise); border: 1px solid var(--line); }
+.ticket details summary { cursor: pointer; font-weight: 700; font-size: .92rem; color: var(--gold); width: fit-content; }
+.ticket details h4 { margin: 14px 0 4px; font: 500 .72rem var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.ticket details ul { margin: 0; padding-left: 18px; font-size: .93rem; columns: 2 200px; column-gap: 24px; }
+.ticket details p { margin-top: 8px; font-size: .88rem; color: var(--muted); }
+
+/* корешок с перфорацией */
+.stub { position: relative; border-left: 2px dashed var(--line); padding: 22px; display: grid; gap: 12px; align-content: space-between; background: var(--raise); }
+.stub::before, .stub::after { content: ""; position: absolute; left: -13px; width: 24px; height: 24px; border-radius: 50%; background: var(--bg); border: 1px solid var(--line); }
+.stub::before { top: -13px; } .stub::after { bottom: -13px; }
+.price { font: 400 1.6rem/1.1 var(--font-display); font-variant-numeric: tabular-nums; }
+.price small { display: block; font: 500 .8rem var(--font-body); color: var(--muted); margin-top: 4px; }
+.stub .btn { width: 100%; padding: 12px; }
+.stub .mono { font-size: .7rem; }
+.stamp {
+  position: absolute; right: 12px; bottom: 12px; width: 82px; height: 82px; border-radius: 50%; display: grid; place-items: center; text-align: center;
+  border: 3px double var(--gold); color: var(--gold); font: 400 .78rem/1.05 var(--font-display); transform: rotate(-14deg);
+  background: color-mix(in srgb, var(--raise) 85%, transparent);
+}
+.stamp b { display: block; font-size: 1.35rem; }
+@media (max-width: 860px) {
+  .ticket { grid-template-columns: 1fr; }
+  .ticket__img { min-height: 190px; }
+  .stub { border-left: 0; border-top: 2px dashed var(--line); grid-template-columns: 1fr auto; align-items: center; }
+  .stub::before { left: -13px; top: -13px; } .stub::after { left: auto; right: -13px; top: -13px; bottom: auto; }
+  .stub .btn { width: auto; }
+  .stub .mono { grid-column: 1 / -1; }
+}
+.tickets-empty { padding: 32px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: var(--r); }
+
+/* ---------- Промо 5+1 ---------- */
+.promo { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 28px; padding: 22px 26px; margin-bottom: 28px; border-radius: var(--r); border: 2px dashed var(--gold); }
+.promo .stamp { position: static; transform: rotate(-10deg); flex: none; }
+.promo p { flex: 1 1 280px; }
+.promo p b { font-family: var(--font-display); font-weight: 400; font-size: 1.3rem; display: block; margin-bottom: 4px; }
+
+/* ---------- Почему мы ---------- */
+.why { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--line); }
+.why div { padding: 26px 24px 0 0; display: grid; gap: 10px; align-content: start; }
+.why div + div { padding-left: 24px; border-left: 1px solid var(--line); }
+.why b { font: 400 1.1rem/1.2 var(--font-display); }
+.why span { color: var(--muted); font-size: .95rem; }
+@media (max-width: 900px) {
+  .why { grid-template-columns: 1fr 1fr; }
+  .why div:nth-child(3) { padding-left: 0; border-left: 0; }
+}
+@media (max-width: 480px) { .why { grid-template-columns: 1fr; } .why div + div { padding-left: 0; border-left: 0; } }
+
+/* ---------- На заказ: маршрут из 4 остановок ---------- */
+.custom { background: var(--surface); border-block: 1px solid var(--line); }
+.custom__top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 40px; align-items: end; margin-bottom: 48px; }
+.custom__top img { width: 100%; max-width: 100%; border-radius: var(--r); aspect-ratio: 16 / 10; object-fit: cover; display: block; }
+@media (max-width: 860px) { .custom__top { grid-template-columns: 1fr; } }
+.route-steps { list-style: none; padding: 0; margin: 0 0 56px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: relative; }
+.route-steps::before { content: ""; position: absolute; left: 12px; right: 12px; top: 11px; border-top: 3px dashed var(--lake); }
+.route-steps li { position: relative; display: grid; gap: 6px; padding-top: 40px; padding-right: 16px; }
+.route-steps li::before { content: ""; position: absolute; left: 0; top: 0; width: 25px; height: 25px; border-radius: 50%; background: var(--surface); border: 4px solid var(--lake); }
+.route-steps li:last-child::before { background: var(--gold); border-color: var(--gold); }
+.route-steps b { font-size: 1.05rem; }
+.route-steps span { color: var(--muted); font-size: .93rem; }
+@media (max-width: 760px) {
+  .route-steps { grid-template-columns: 1fr; gap: 22px; }
+  .route-steps::before { left: 11px; right: auto; top: 12px; bottom: 12px; border-top: 0; border-left: 3px dashed var(--lake); }
+  .route-steps li { padding: 0 0 0 44px; }
+}
+.cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
+@media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
+.cols h3 { margin-bottom: 14px; }
+.ticks { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.ticks li { display: flex; gap: 10px; }
+.ticks li::before { content: "✓"; color: var(--lake); font-weight: 700; }
+.chips { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.chips li { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); font-size: .9rem; font-weight: 600; }
+
+/* ---------- Мероприятия ---------- */
+.stats { display: flex; flex-wrap: wrap; gap: 24px 56px; margin-bottom: 48px; }
+.stat b { display: block; font: 400 clamp(2.8rem, 8vw, 5rem)/1 var(--font-display); color: var(--gold); }
+.stat span { color: var(--muted); }
+.ticker { overflow: hidden; border-block: 1px solid var(--line); padding-block: 18px; margin-top: 56px; mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.ticker__row { display: flex; gap: 48px; width: max-content; font: 400 1.25rem var(--font-display); color: var(--muted); }
+.ticker__row span::after { content: "✦"; margin-left: 48px; color: var(--gold); }
+@media (prefers-reduced-motion: no-preference) {
+  .ticker__row { animation: tick 40s linear infinite; }
+  @keyframes tick { to { transform: translateX(-50%); } }
+}
+@media (prefers-reduced-motion: reduce) { .ticker__row { flex-wrap: wrap; width: auto; gap: 12px 32px; } }
+.fleet { margin-top: 48px; display: flex; flex-wrap: wrap; gap: 20px 40px; align-items: center; justify-content: space-between; padding: 26px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--line); }
+.fleet p { color: var(--muted); margin-top: 6px; }
+
+/* ---------- Сертификат ---------- */
+.cert { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: center; }
+@media (max-width: 860px) { .cert { grid-template-columns: 1fr; } }
+.gift { display: grid; grid-template-columns: minmax(0, 1fr) 120px; border-radius: var(--r); overflow: hidden; background: var(--gold); color: var(--on-gold); transform: rotate(-2deg); box-shadow: 0 30px 60px -30px rgba(0,0,0,.6); max-width: 100%; }
+.gift__main { padding: 26px; display: grid; gap: 16px; }
+.gift__main strong { font: 400 clamp(1.6rem, 4vw, 2.2rem)/1.05 var(--font-display); }
+.gift__main .mono, .gift__stub .mono { color: inherit; opacity: .75; font-size: .7rem; }
+.gift__stub { border-left: 2px dashed currentColor; padding: 20px 14px; display: grid; place-items: center; text-align: center; }
+.gift__stub img { width: 64px; height: 64px; }
+.perks { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 22px; }
+.perks div { border-left: 3px solid var(--gold); padding-left: 12px; font-size: .95rem; }
+
+/* ---------- Отзывы-открытки ---------- */
+.cards { display: flex; gap: 20px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 10px 4px 24px; scrollbar-width: thin; }
+.card {
+  flex: 0 0 min(330px, 84%); scroll-snap-align: start; margin: 0; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; overflow: hidden; display: flex; flex-direction: column;
+}
+.card:nth-child(odd) { transform: rotate(-.8deg); } .card:nth-child(even) { transform: rotate(.8deg); }
+.card img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
+.card__body { padding: 20px 22px 22px; display: grid; gap: 14px; flex: 1; align-content: space-between; }
+.card p { font-size: .98rem; }
+.card cite { font-style: normal; display: grid; }
+.card cite .hand { font-size: 1.45rem; line-height: 1; }
+.card cite .mono { font-size: .68rem; }
+.cards-nav { display: flex; gap: 8px; }
+.cards-nav button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--fg); font-size: 1.2rem; cursor: pointer; }
+.cards-nav button:hover { border-color: var(--gold); }
+.head--row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 16px; max-width: none; }
+
+/* ---------- FAQ ---------- */
+.faq { display: grid; max-width: 860px; border-top: 1px solid var(--line); }
+.faq details { border-bottom: 1px solid var(--line); padding: 20px 0; }
+.faq summary { cursor: pointer; font-weight: 700; font-size: 1.08rem; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; font: 400 1.4rem/1 var(--font-display); color: var(--gold); transition: transform .2s; }
+.faq details[open] summary::after { transform: rotate(45deg); }
+.faq p, .faq ul { margin: 12px 0 0; color: var(--muted); }
+.faq ul { padding-left: 18px; }
+
+/* ---------- Посадочный талон (форма) ---------- */
+.booking .wrap { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 48px; align-items: start; }
+@media (max-width: 860px) { .booking .wrap { grid-template-columns: 1fr; } }
+.contacts { display: grid; gap: 16px; margin-top: 28px; }
+.contacts b { font: 400 1.4rem var(--font-display); user-select: all; }
+.pass { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.pass__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 22px; background: var(--gold); color: var(--on-gold); }
+.pass__head b { font: 400 1rem var(--font-display); letter-spacing: .04em; }
+.pass__head .mono { color: inherit; opacity: .8; }
+.form { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 22px; }
+.form label { display: grid; gap: 6px; font: 500 .72rem var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.form .full { grid-column: 1 / -1; }
+.form input, .form select { font: 600 1rem var(--font-body); padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--raise); color: var(--fg); width: 100%; min-width: 0; }
+.total { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 12px; padding-top: 16px; border-top: 2px dashed var(--line); }
+.total b { font: 400 1.7rem var(--font-display); font-variant-numeric: tabular-nums; color: var(--gold); }
+.total small { width: 100%; color: var(--muted); }
+.form .btn { grid-column: 1 / -1; }
+.form__hint { grid-column: 1 / -1; color: var(--muted); font-size: .85rem; }
+@media (max-width: 480px) { .form { grid-template-columns: 1fr; } }
+
+.footer { border-top: 1px solid var(--line); color: var(--muted); font-size: .9rem; }
+.footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding-block: 28px; }
+
+/* ---------- Кнопки внизу экрана на телефоне ---------- */
+.mobile-cta { display: none; }
+@media (max-width: 760px) {
+  .mobile-cta {
+    display: flex; gap: 10px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+    background: var(--bg); border-top: 1px solid var(--line);
+  }
+  .mobile-cta .btn { flex: 1; padding: 12px; }
+  body { padding-bottom: 72px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-wa" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 00-8.6 15.1L2 22l5-1.3A10 10 0 1012 2zm0 18.2a8.2 8.2 0 01-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1112 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 01-3.3-2.9c-.3-.4.2-.4.7-1.4.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 00-.7.3 3 3 0 00-.9 2.2 5.2 5.2 0 001.1 2.8 11.9 11.9 0 004.6 4c1.7.7 2.4.8 3.2.7a2.8 2.8 0 001.8-1.3 2.3 2.3 0 00.2-1.3c-.1-.1-.2-.2-.5-.3z"/></symbol>
+</svg>
+
+<header class="header">
+  <div class="wrap">
+    <a class="logo" href="#top"><img src="img/logo.png" alt="" width="42" height="42"><b>KOMPAS<br>ASIA</b></a>
+    <nav class="nav" aria-label="Разделы">
+      <a href="#board">Табло</a>
+      <a href="#tours">Туры</a>
+      <a href="#custom">На заказ</a>
+      <a href="#events">Мероприятия</a>
+      <a href="#reviews">Отзывы</a>
+      <a href="#booking">Заявка</a>
+    </nav>
+    <a class="btn" href="https://wa.me/77001940940" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg>WhatsApp</a>
+  </div>
+</header>
+
+<main id="top">
+  <!-- HERO: текст + карта маршрутов по реальным координатам -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero__text">
+        <p class="mono">Туроператор · Астана · Алматы</p>
+        <h1>Казахстан <em>по&nbsp;компасу</em></h1>
+        <p class="hand">больше, чем просто путешествия</p>
+        <p class="hero__lead">Однодневные и выходные туры в Бурабай, Зеренду, Баянаул и Каркаралинск. Индивидуальные маршруты, тимбилдинги и корпоративы под ключ.</p>
+        <div class="hero__actions">
+          <a class="btn" href="#board">Куда едем завтра?</a>
+          <a class="btn btn--line" href="#custom">Тур на заказ</a>
+        </div>
+        <div class="hero__facts mono">
+          <span><b>60,8 тыс.</b> подписчиков</span>
+          <span><b>24/7</b> на связи</span>
+          <span><b>свой</b> транспорт</span>
+        </div>
+      </div>
+      <div class="map">
+        <svg id="map" viewBox="0 0 1000 620" role="img" aria-label="Карта маршрутов Kompas Asia: из Астаны в Бурабай, Зеренду, Имантау, Баянаул, Каркаралинск; из Алматы к Кольсаю и Чарыну; индивидуально в Мангистау и Туркестан"></svg>
+        <div class="map__legend mono">
+          <span><i></i>групповые выезды</span>
+          <span><i class="g"></i>индивидуально</span>
+          <span>нажмите на точку</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="ny">
+    <div class="wrap">
+      <p><b>Новый год 2027</b> в путешествии: Бурабай, Алматы, Зеренда. Раннее бронирование открыто</p>
+      <div class="ny__dates">
+        <span>31.12 — 02.01</span><span>02.01 — 04.01</span>
+        <a class="btn btn--line" href="#booking" data-tour="Новогодний тур">Забронировать</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Табло: туры на выбранный день -->
+  <section class="section" id="board">
+    <div class="wrap">
+      <div class="head">
+        <p class="mono">Табло выездов · 51°10′N 71°26′E</p>
+        <h2>Куда едем на этой неделе</h2>
+        <p>Выберите день — табло покажет, какие групповые туры выезжают.</p>
+      </div>
+      <div class="board">
+        <div class="board__days" id="boardDays" role="group" aria-label="День выезда"></div>
+        <div class="board__scroll">
+          <table>
+            <thead><tr><th>Направление</th><th>Откуда</th><th>Длительность</th><th>Цена</th><th></th></tr></thead>
+            <tbody id="boardRows"></tbody>
+          </table>
+        </div>
+        <p class="board__note">Индивидуальные туры — в любой день, по запросу</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Каталог: билеты -->
+  <section class="section" id="tours" style="padding-top:0">
+    <div class="wrap">
+      <div class="head">
+        <p class="mono">Каталог · октябрь — декабрь</p>
+        <h2>Билеты в дорогу</h2>
+      </div>
+      <div class="promo">
+        <div class="stamp" aria-hidden="true"><span>Акция<b>5+1</b></span></div>
+        <p><b>Шестой едет бесплатно</b>При бронировании от 5 человек на тур в Бурабай на 1 день.</p>
+        <a class="btn btn--line" href="#booking" data-tour="Бурабай · 1 день">Собрать компанию</a>
+      </div>
+      <div class="filters" role="group" aria-label="Фильтр туров">
+        <button class="filter" type="button" data-filter="all" aria-pressed="true">Все</button>
+        <button class="filter" type="button" data-filter="1day" aria-pressed="false">1 день</button>
+        <button class="filter" type="button" data-filter="multi" aria-pressed="false">2–3 дня</button>
+        <button class="filter" type="button" data-filter="custom" aria-pressed="false">Индивидуальные</button>
+      </div>
+      <div class="tickets" id="tickets"></div>
+    </div>
+  </section>
+
+  <!-- Почему мы -->
+  <section class="section" style="padding-top:0" aria-labelledby="why-title">
+    <div class="wrap">
+      <div class="head"><p class="mono">Почему Kompas Asia</p><h2 id="why-title">Мы про комфорт и безопасность</h2></div>
+      <div class="why">
+        <div><b>Свой транспорт</b><span>Автобусы и минивэны партнёра Silk Way Logistics, аккуратные водители</span></div>
+        <div><b>Гиды, которых хвалят</b><span>Игры, песни под гитару и истории о каждой локации</span></div>
+        <div><b>Работаем 24/7</b><span>Ежедневные выезды, отвечаем в WhatsApp в любое время</span></div>
+        <div><b>Всё включено</b><span>Транспорт, обед, сборы нацпарка и экскурсии уже в цене</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- На заказ -->
+  <section class="section custom" id="custom">
+    <div class="wrap">
+      <div class="custom__top">
+        <div class="head" style="margin:0">
+          <p class="mono">Ваши идеи — наши маршруты</p>
+          <h2>Тур на заказ в любой день недели</h2>
+          <p>Доверьте организацию профессионалам: вы выбираете дату, остальное берём на себя.</p>
+        </div>
+        <img src="img/bus.jpg" alt="Автобус Kompas Asia на горной дороге у озера" loading="lazy">
+      </div>
+      <ol class="route-steps">
+        <li><b>Вы выбираете дату</b><span>Любой день, любое количество людей</span></li>
+        <li><b>Мы разрабатываем маршрут</b><span>Под ваш формат и бюджет</span></li>
+        <li><b>Организуем всё под ключ</b><span>Транспорт, жильё, питание, гиды</span></li>
+        <li><b>Вы наслаждаетесь</b><span>Мы заботимся о деталях</span></li>
+      </ol>
+      <div class="cols">
+        <div>
+          <h3>Всё включено</h3>
+          <ul class="ticks">
+            <li>Комфортабельный трансфер</li><li>Отели и дома отдыха</li><li>Вкусное питание</li>
+            <li>Развлекательная программа</li><li>Экскурсии</li><li>Гиды-организаторы и ведущие</li>
+            <li>Фото- и видеосъёмка</li><li>Отчётность для компаний</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Кому подходит</h3>
+          <ul class="ticks"><li>Большим компаниям</li><li>Нескольким семьям</li><li>Студентам и школьникам</li><li>Иностранным гостям и делегациям</li></ul>
+        </div>
+        <div>
+          <h3>Куда можем организовать</h3>
+          <ul class="chips">
+            <li>Астана</li><li>Бурабай</li><li>Зеренда</li><li>Баянаул</li><li>Имантау</li><li>Каркаралинск</li><li>Алматы и область</li><li>Балхаш</li>
+            <li>Шымкент и Туркестан</li><li>Мангистау</li><li>Восточный Казахстан</li><li>Актобе</li><li>Музей АЛЖИР</li><li>Музей Карлаг</li><li>Село Родина</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Мероприятия -->
+  <section class="section" id="events">
+    <div class="wrap">
+      <div class="head"><p class="mono">Мероприятия под ключ</p><h2>Тимбилдинги, корпоративы, выпускные</h2></div>
+      <div class="stats">
+        <div class="stat"><b>500+</b><span>проведённых мероприятий</span></div>
+        <div class="stat"><b>4–50</b><span>мест в транспорте</span></div>
+        <div class="stat"><b>24/7</b><span>ежедневные выезды</span></div>
+      </div>
+      <div class="cols">
+        <div><h3>Проводим</h3><ul class="ticks"><li>Индивидуальные туры</li><li>Тимбилдинги и корпоративы</li><li>Выездные мероприятия</li><li>Дни рождения и годовщины компаний</li><li>Девичники и мальчишники</li><li>Выпускные</li></ul></div>
+        <div><h3>В команде</h3><ul class="ticks"><li>Гиды и организаторы</li><li>Ведущие и аниматоры</li><li>Фотографы и видеографы</li><li>Музыканты и диджеи</li><li>Водители</li></ul></div>
+        <div><h3>Предоставляем</h3><ul class="ticks"><li>VIP-транспорт</li><li>Встречу в аэропорту</li><li>Консьерж-сервис</li></ul></div>
+      </div>
+      <div class="ticker" aria-label="Нам доверяют">
+        <div class="ticker__row">
+          <span>Magnum</span><span>Egger</span><span>Invivo</span><span>Jet Logistic</span><span>Nazarbayev University</span><span>Abay Academy</span><span>Orda Invest</span><span>Shaurma Food</span><span>Посольства</span><span>Школы и университеты</span>
+          <span aria-hidden="true">Magnum</span><span aria-hidden="true">Egger</span><span aria-hidden="true">Invivo</span><span aria-hidden="true">Jet Logistic</span><span aria-hidden="true">Nazarbayev University</span><span aria-hidden="true">Abay Academy</span><span aria-hidden="true">Orda Invest</span><span aria-hidden="true">Shaurma Food</span><span aria-hidden="true">Посольства</span><span aria-hidden="true">Школы и университеты</span>
+        </div>
+      </div>
+      <div class="fleet">
+        <div><h3>Аренда транспорта с водителем</h3><p>От 4 до 50 мест, комфорт и VIP, по всему Казахстану. Автопарк партнёра @silkway.logisticskz</p></div>
+        <a class="btn" href="#booking" data-tour="Аренда транспорта">Заказать транспорт</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Сертификат -->
+  <section class="section custom" id="cert">
+    <div class="wrap cert">
+      <div class="gift" aria-hidden="true">
+        <div class="gift__main">
+          <span class="mono">Kompas Asia · подарочный</span>
+          <strong>Сертификат<br>на путешествие</strong>
+          <span class="mono">Любой тур · любая дата в течение года</span>
+        </div>
+        <div class="gift__stub"><img src="img/logo.png" alt=""><span class="mono">именной</span></div>
+      </div>
+      <div>
+        <p class="mono">Лучший подарок</p>
+        <h2 style="margin-top:12px">Подарите дорогу</h2>
+        <p style="margin-top:12px;color:var(--muted)">Для тех, кто любит приключения и новые впечатления.</p>
+        <div class="perks">
+          <div>На любой тур и направление</div><div>На любую дату в течение года</div>
+          <div>Именной сертификат</div><div>Электронный или в конверте</div>
+        </div>
+        <a class="btn" style="margin-top:26px" href="#booking" data-tour="Подарочный сертификат">Заказать сертификат</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Отзывы-открытки -->
+  <section class="section" id="reviews">
+    <div class="wrap">
+      <div class="head head--row">
+        <div class="head" style="margin:0"><p class="mono">Открытки с дороги</p><h2>Что пишут туристы</h2></div>
+        <div class="cards-nav"><button type="button" data-dir="-1" aria-label="Назад">←</button><button type="button" data-dir="1" aria-label="Вперёд">→</button></div>
+      </div>
+      <div class="cards" id="cards">
+        <figure class="card"><img src="img/group-burabay.jpg" alt="Группа туристов на вершине над озером Бурабай на закате" loading="lazy">
+          <div class="card__body"><p>Всё было супер! Отдельное спасибо Рахату и Даулету, молодцы!</p><cite><span class="hand">Группа из Астаны</span><span class="mono">Бурабай</span></cite></div></figure>
+        <figure class="card"><div class="card__body"><p>Съездили в Боровое с гидом Даулетом, и это было огонь! Видно, что он любит свою работу. Автобус ехал так плавно, будто на легковой машине. С такими людьми дорога становится отдельной частью путешествия.</p><cite><span class="hand">Аружан</span><span class="mono">Бурабай · 1 день</span></cite></div></figure>
+        <figure class="card"><img src="img/group-bayanaul.jpg" alt="Группа туристов с флагом Kompas Asia у скалы Кемпиртас в Баянауле" loading="lazy">
+          <div class="card__body"><p>Удобно на короткий срок вырваться из города. Гид Алия грамотно рассказывает про все локации и даже подготовила игры. Водитель Берик водит очень аккуратно.</p><cite><span class="hand">Турист из Астаны</span><span class="mono">Баянаул</span></cite></div></figure>
+        <figure class="card"><div class="card__body"><p>На вершине Болектау мой телефон улетел вниз на скалы. Гид Максат спустился по крутому склону и нашёл его целым! У вас работают лучшие профессионалы.</p><cite><span class="hand">Спасибо, Максат!</span><span class="mono">Бурабай · гиды Максат и Влада</span></cite></div></figure>
+        <figure class="card"><div class="card__body"><p>Это уже мой 5-й тур с «Компас Азия», настоящий маленький юбилей. Отдельное спасибо гиду Гульназ: очень внимательная и позитивная!</p><cite><span class="hand">@yevgeniya_1906</span><span class="mono">Бурабай</span></cite></div></figure>
+        <figure class="card"><img src="img/group-imantau.jpg" alt="Группа туристов Kompas Asia с флагом Казахстана на вершине у озера Имантау" loading="lazy">
+          <div class="card__body"><p>Первый тур Имантау — Шалкар прошёл очень круто! Спасибо гиду Медеу, не давал нам скучать!</p><cite><span class="hand">Из сторис</span><span class="mono">Имантау — Шалкар</span></cite></div></figure>
+        <figure class="card"><div class="card__body"><p>Гидом была Балнур: всех разговорила, развеселила, всё было познавательно. Первый раз поехала в такой тур, и ожидания полностью оправдались. Теперь хочу на Балхаш!</p><cite><span class="hand">Первый тур</span><span class="mono">Зеренда</span></cite></div></figure>
+        <figure class="card"><div class="card__body"><p>Отдельная благодарность Компас Азия и гидам Максату и Владе за хорошую организацию и прекрасное настроение!</p><cite><span class="hand">Orda Invest</span><span class="mono">Корпоративный тимбилдинг</span></cite></div></figure>
+        <figure class="card"><div class="card__body"><p>Диас, Влада, спасибо за насыщенный, музыкальный день. Вы подарили детям и нам, родителям, море ярких эмоций!</p><cite><span class="hand">Асем</span><span class="mono">Школьный выезд</span></cite></div></figure>
+        <figure class="card"><div class="card__body"><p>Спасибо Алтынай за подобранный тур, а Данияру и Мирасу — весело, энергично! Мы в предвкушении следующих выходных.</p><cite><span class="hand">Аптека «Биосфера»</span><span class="mono">Тимбилдинг · Баянаул</span></cite></div></figure>
+      </div>
+      <p class="mono" style="margin-top:8px">Больше отзывов — в <a href="https://instagram.com/kompas.asia" target="_blank" rel="noopener">Instagram @kompas.asia</a></p>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section" id="faq" style="padding-top:0">
+    <div class="wrap">
+      <div class="head"><p class="mono">Перед поездкой</p><h2>Частые вопросы</h2></div>
+      <div class="faq">
+        <details><summary>Что взять с собой в однодневный тур?</summary>
+          <ul><li>Удостоверение личности</li><li>Удобную обувь для подъёма на смотровые</li><li>Тёплую одежду: у озёр и в горах прохладнее, чем в городе</li><li>Воду, перекус, зарядку для телефона</li><li>Наличные на катер, маралью ферму и сувениры</li></ul></details>
+        <details><summary>Откуда и во сколько выезд?</summary>
+          <p>Групповые туры выезжают из Астаны, туры по Кольсаю и Чарыну — из Алматы. Место и время сбора менеджер пришлёт в WhatsApp после бронирования.</p></details>
+        <details><summary>Есть ли скидки?</summary>
+          <p>Тур в Бурабай на 1 день для детей и студентов — 15 500 ₸ вместо 16 500 ₸. По акции 5+1 шестой человек в компании едет бесплатно.</p></details>
+        <details><summary>Можно поехать одному?</summary>
+          <p>Конечно. Многие едут в одиночку и возвращаются с новыми друзьями.</p></details>
+        <details><summary>Как забронировать и оплатить?</summary>
+          <!-- уточнить у клиента: предоплата, способы оплаты, возврат -->
+          <p>Оставьте заявку ниже или напишите в WhatsApp. Менеджер подтвердит места и расскажет об условиях оплаты и возврата.</p></details>
+        <details><summary>Можно тур только для нашей компании?</summary>
+          <p>Да, в любой день и для любого количества человек: тимбилдинги, корпоративы, школьные выезды, туры для делегаций.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- Заявка: посадочный талон -->
+  <section class="section booking custom" id="booking">
+    <div class="wrap">
+      <div>
+        <p class="mono">Бронирование</p>
+        <h2 style="margin-top:12px">Ваш посадочный талон</h2>
+        <p style="margin-top:12px;color:var(--muted)">Заполните талон — откроется WhatsApp с готовым сообщением и суммой.</p>
+        <div class="contacts">
+          <div><p class="mono">WhatsApp и звонки</p><b>+7 700 194 09 40</b></div>
+          <div><p class="mono">Instagram</p><a href="https://instagram.com/kompas.asia" target="_blank" rel="noopener"><b>@kompas.asia</b></a></div>
+        </div>
+      </div>
+      <div class="pass">
+        <div class="pass__head"><b>KOMPAS ASIA · BOARDING</b><span class="mono">Астана → ?</span></div>
+        <form class="form" id="bookingForm" novalidate>
+          <label class="full" for="f-tour">Направление<select id="f-tour"></select></label>
+          <label for="f-date">Дата<input id="f-date" type="date"></label>
+          <label for="f-people">Пассажиров<input id="f-people" type="number" min="1" value="2"></label>
+          <label class="full" for="f-name">Имя<input id="f-name" type="text" placeholder="Например, Айгерим" autocomplete="name"></label>
+          <div class="total" aria-live="polite"><span>Примерная стоимость</span><b id="total">—</b><small id="totalNote"></small></div>
+          <a class="btn" id="waLink" href="https://wa.me/77001940940" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg>Отправить в WhatsApp</a>
+          <p class="form__hint">Если WhatsApp не открылся, напишите на +7 700 194 09 40.</p>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="mobile-cta">
+  <a class="btn btn--line" href="#board">Табло</a>
+  <a class="btn" href="https://wa.me/77001940940" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg>WhatsApp</a>
+</div>
+
+<footer class="footer">
+  <div class="wrap"><span>© 2026 Kompas Asia · туристическая компания</span><span class="mono">51°10′N 71°26′E · Астана</span></div>
+</footer>
+
+<script>
+/* ===== Данные туров =====
+   days: 0 = вс ... 6 = сб, "daily" — ежедневно, null — индивидуально.
+   ll: [широта, долгота] — для точки на карте и корешка билета. */
+const TOURS = [
+  { id: "burabay-1", name: "Бурабай · 1 день", place: "Бурабай", type: "1day", from: "Астана", dur: "1 день", ll: [53.08, 70.30],
+    days: "daily", schedule: "Ежедневно", price: "16 500 ₸", note: "дети и студенты — 15 500 ₸", promo: true, img: "img/burabay-1.jpg",
+    desc: "Казахстанская Швейцария: однодневный тур с лучшими локациями, всё включено.",
+    included: ["Транспорт", "Обед", "Сборы нацпарка", "Экскурсии", "Сопровождение гида", "Развлекательная программа"],
+    places: ["Стела Бурабай", "Озеро Бурабай и скала Окжетпес", "Олений питомник"] },
+  { id: "burabay-2", name: "Бурабай · 2 дня", place: "Бурабай", type: "multi", from: "Астана", dur: "2 дня", ll: [53.08, 70.30],
+    days: [6], schedule: "Сб–Вс", price: "50 000 ₸", note: "можно продлить отдых", img: "img/burabay-2.jpg",
+    desc: "С проживанием в отеле, тимбилдингами и вечерней программой.",
+    included: ["Проживание в отеле", "Питание по программе", "Тимбилдинги и игры", "Туристические сборы", "Вечерняя программа", "Полное сопровождение"],
+    places: ["Озеро Бурабай", "Смотровая площадка", "Озеро Большое Чебачье", "Поляна Абылай хана", "Гора Болектау", "Скалы Жумбактас и Окжетпес", "Иманаевский родник"],
+    extra: "Маралья ферма и резиденция Санты оплачиваются отдельно" },
+  { id: "rixos", name: "Rixos Borovoe", place: "Бурабай", type: "multi", from: "Астана", dur: "2 дня", ll: [53.08, 70.30],
+    days: [0, 3, 6], schedule: "Вс–Пн, Ср–Чт, Сб–Вс", price: "от 85 000 ₸", note: "всё включено",
+    desc: "Отдых в пятизвёздочном отеле на берегу озера.", hue: ["#8a6a3a", "#2b2214"] },
+  { id: "zerenda-1", name: "Зеренда · 1 день", place: "Зеренда", type: "1day", from: "Астана", dur: "1 день", ll: [52.91, 69.15],
+    days: [3, 6, 0], schedule: "Ср, Сб, Вс", price: "18 000 ₸", note: "со скидкой, вместо 20 000 ₸",
+    desc: "Сосновый воздух, озёра, лес и настоящее ощущение перезагрузки.", hue: ["#2f6a80", "#12261d"] },
+  { id: "zerenda-2", name: "Зеренда · 2 дня", place: "Зеренда", type: "multi", from: "Астана", dur: "2 дня", ll: [52.91, 69.15],
+    days: [6], schedule: "Сб–Вс", price: "55 000 ₸",
+    desc: "С проживанием в отеле посреди леса на берегу озера.", hue: ["#27566a", "#0e1f17"],
+    included: ["Транспорт из Астаны и обратно", "Проживание в отеле", "Питание: обед, ужин, завтрак, обед", "Туристические сборы", "Чаепитие из самовара", "Развлекательная программа", "Полное сопровождение"],
+    places: ["Озеро Зеренда", "Смольная сопка", "Зерендинский лес", "Ульгулинский каньон и водопад", "Камень желаний"] },
+  { id: "bayanaul", name: "Волшебный Баянаул", place: "Баянаул", type: "1day", from: "Астана", dur: "1 день", ll: [50.79, 75.70],
+    days: [4, 5, 6, 0], schedule: "Чт, Пт, Сб, Вс", price: "21 000 ₸", note: "с обедом — 23 500 ₸", img: "img/bayanaul.jpg",
+    desc: "Пещера, роща чёрной ольхи, сказочные скалы, чистейшие озёра и высокие горы.",
+    included: ["Автобус с кондиционером", "Откидные сиденья", "Опытные гиды", "Экскурсии", "Полное сопровождение", "Развлекательная программа"],
+    places: ["Пещера Коныр-Аулие", "Озеро Жасыбай", "Торайгыр", "Скала Кемпиртас", "Пик Смелых", "Ущелье ведьм"] },
+  { id: "imantau", name: "Имантау — Шалкар", place: "Имантау", type: "1day", from: "Астана", dur: "1 день", ll: [53.35, 68.33],
+    days: [6, 0], schedule: "Сб, Вс", price: "24 000 ₸", img: "img/imantau.jpg",
+    desc: "Бирюзовые озёра, горы и хвойные леса для отдыха и перезагрузки.",
+    included: ["Транспорт из Астаны", "Услуги гидов", "Туристические сборы", "Комплексный обед", "Экскурсия", "Полное сопровождение"],
+    places: ["Сопка Казантау", "Смотровая", "Озеро Имантау", "Озеро Шалкар", "Камень энергии", "Лес Имантау"] },
+  { id: "karkaralinsk", name: "Каркаралинск", place: "Каркаралинск", type: "1day", from: "Астана", dur: "1 день", ll: [49.41, 75.47],
+    days: [6, 0], schedule: "Сб, Вс", price: "20 000 ₸", note: "со скидкой, вместо 21 000 ₸", img: "img/karkaralinsk.jpg",
+    desc: "Горы, сосновые леса и озёра, где вас ждут бизоны и олени." },
+  { id: "kolsai", name: "Кольсай, Кайынды, Чарын", place: "Кольсай", type: "1day", from: "Алматы", dur: "1 день", ll: [42.93, 78.32],
+    days: "daily", schedule: "Ежедневно", price: "от 17 000 ₸", hue: ["#3a8a9a", "#5a3420"],
+    desc: "Однодневный тур к горным озёрам и каньонам.",
+    included: ["Транспорт из Алматы", "Топ-локации", "Экологические сборы", "Гид и организаторы", "Полное сопровождение"],
+    places: ["Озеро Кольсай", "Озеро Кайынды", "Чарынский каньон", "Лунный и Чёрный каньоны", "Река Чарын"] },
+  { id: "almaty", name: "Алматы · 2–3 дня", place: "Алматы", type: "multi", from: "Алматы", dur: "2–3 дня", ll: [43.24, 76.95],
+    days: [5], schedule: "Пт–Вс", price: "от 27 000 ₸", hue: ["#a0663a", "#2b1a10"],
+    desc: "Горы, каньоны и город за одну поездку.",
+    included: ["Транспорт по всем локациям", "Гостевые дома", "Питание по программе", "Экологические сборы", "Гид и организаторы", "Развлекательная программа"],
+    places: ["Озёра Кольсай и Кайынды", "Чарынский, Лунный и Чёрный каньоны", "Медеу и Шымбулак", "Кок-Тобе", "Музеи Алматы", "Парк 28 панфиловцев"] },
+  { id: "mangistau", name: "Мангистау: джип-тур", place: "Мангистау", type: "custom", from: "Актау", dur: "1–3 дня", ll: [43.65, 51.17],
+    days: null, schedule: "Любой день, индивидуально", price: "по запросу", hue: ["#c09a6a", "#4a2e20"],
+    desc: "Самые необычные пейзажи Казахстана на джипах.",
+    included: ["Джипы по всему маршруту", "Гостиница", "Питание", "Экскурсия", "Гиды-организаторы"],
+    places: ["Бекет-Ата", "Бозжира", "Кызылкуп", "Голубая бухта", "Капамсай", "Шакпак-Ата", "Долина шаров Торыш"] },
+  { id: "turkestan", name: "Туркестан + Шымкент", place: "Туркестан", type: "custom", from: "по запросу", dur: "1–3 дня", ll: [43.30, 68.25],
+    days: null, schedule: "Любой день, индивидуально", price: "по запросу", hue: ["#2f7a9a", "#7a5a2a"],
+    desc: "Святые места и древние города юга Казахстана.",
+    included: ["Транспорт", "Проживание", "Питание", "Гид", "Входные билеты"],
+    places: ["Керуен-Сарай", "Мавзолей Ходжи Ахмеда Ясави", "Арыстан Баб", "Отырар", "Пещера Акмешит", "Домалак ана", "Айша Биби"] }
+];
+
+const $ = (s) => document.querySelector(s);
+const DAY = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"];
+const fmtDate = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short" });
+const coord = ([la, lo]) => `${la.toFixed(2)}°N ${lo.toFixed(2)}°E`;
+const goesOn = (t, d) => t.days === "daily" || (Array.isArray(t.days) && t.days.includes(d.getDay()));
+
+/* ===== Карта: точки ставятся по координатам (простая равнопромежуточная проекция) ===== */
+(function drawMap() {
+  const box = { lonMin: 49, lonMax: 81, latMin: 41.5, latMax: 54.6, w: 1000, h: 620 };
+  const xy = ([la, lo]) => [
+    (lo - box.lonMin) / (box.lonMax - box.lonMin) * box.w,
+    (box.latMax - la) / (box.latMax - box.latMin) * box.h
+  ];
+  const hubs = { "Астана": [51.17, 71.43], "Алматы": [43.24, 76.95] };
+  // подписи: смещение, чтобы близкие точки не налезали
+  const label = { "Бурабай": [16, -10, "start"], "Зеренда": [-16, 26, "end"], "Имантау": [-16, -8, "end"],
+    "Баянаул": [16, 6, "start"], "Каркаралинск": [16, 8, "start"], "Кольсай": [0, 38, "middle"],
+    "Алматы": [0, 0, "middle"], "Мангистау": [16, -12, "start"], "Туркестан": [-16, 6, "end"] };
+  let s = "";
+  // сетка широт/долгот
+  s += `<g class="grid">`;
+  for (let lo = 50; lo <= 80; lo += 5) { const [x] = xy([0, lo]); s += `<line x1="${x}" y1="0" x2="${x}" y2="${box.h}" opacity=".5"/><text x="${x + 6}" y="${box.h - 8}">${lo}°E</text>`; }
+  for (let la = 45; la <= 54; la += 5) { const [, y] = xy([la, 0]); s += `<line x1="0" y1="${y}" x2="${box.w}" y2="${y}" opacity=".5"/><text x="6" y="${y - 6}">${la}°N</text>`; }
+  s += `</g>`;
+  // маршруты: уникальные места
+  const places = TOURS.filter((t, i, a) => a.findIndex((x) => x.place === t.place) === i);   // первый тур каждого места
+  places.forEach((t, i) => {
+    if (t.place === "Алматы") return;
+    const hub = hubs[t.from] || hubs["Астана"];
+    const [x1, y1] = xy(t.from === "Актау" ? t.ll : hub), [x2, y2] = xy(t.ll);
+    if (t.from === "Актау") return;
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2 - Math.hypot(x2 - x1, y2 - y1) * .18;
+    s += `<path class="route ${t.type === "custom" ? "route--custom" : ""}" style="animation-delay:${i * .12}s" d="M${x1},${y1} Q${mx},${my} ${x2},${y2}"/>`;
+  });
+  // Мангистау — пунктир от Астаны (индивидуально)
+  { const [x1, y1] = xy(hubs["Астана"]), [x2, y2] = xy([43.65, 51.17]);
+    s += `<path class="route route--custom" d="M${x1},${y1} Q${(x1 + x2) / 2},${y1 - 40} ${x2},${y2}"/>`; }
+  // точки
+  places.forEach((t) => {
+    if (hubs[t.place]) return;
+    const [x, y] = xy(t.ll); const [dx, dy, a] = label[t.place] || [16, 6, "start"];
+    s += `<a class="pin ${t.type === "custom" ? "pin--custom" : ""}" href="#t-${t.id}" data-id="${t.id}" aria-label="${t.place}: ${t.name}">
+      <circle cx="${x}" cy="${y}" r="10"/><text x="${x + dx}" y="${y + dy}" text-anchor="${a}">${t.place}</text></a>`;
+  });
+  Object.entries(hubs).forEach(([n, ll]) => {
+    const [x, y] = xy(ll);
+    s += `<g class="hub"><circle cx="${x}" cy="${y}" r="13"/><text x="${x + (n === "Астана" ? 22 : -22)}" y="${y + 9}" text-anchor="${n === "Астана" ? "start" : "end"}">${n}</text></g>`;
+  });
+  // роза ветров
+  s += `<g class="rose" transform="translate(70 60)"><svg x="-48" y="-48" width="96" height="96" viewBox="-48 -48 96 96" overflow="visible">
+    <circle r="40" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".6"/>
+    <path d="M0,-44 L7,0 L0,44 L-7,0Z" fill="currentColor" opacity=".35"/><path d="M0,-44 L7,0 L-7,0Z" fill="currentColor"/>
+    <path d="M-44,0 L0,-5 L44,0 L0,5Z" fill="currentColor" opacity=".35"/>
+    <text y="-52" text-anchor="middle" fill="currentColor" style="font:700 16px var(--font-mono)">N</text></svg></g>`;
+  $("#map").innerHTML = s;
+})();
+
+/* ===== Табло: дни недели и туры на выбранный день ===== */
+const days = [...Array(7)].map((_, i) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + i + 1); return d; });
+$("#boardDays").innerHTML = days.map((d, i) =>
+  `<button class="board__day" type="button" data-i="${i}" aria-pressed="${i === 0}"><span>${i === 0 ? "завтра" : DAY[d.getDay()]}</span><b>${d.getDate()}</b></button>`).join("");
+
+function renderBoard(i) {
+  const d = days[i];
+  document.querySelectorAll(".board__day").forEach((b) => b.setAttribute("aria-pressed", b.dataset.i == i));
+  const rows = TOURS.filter((t) => goesOn(t, d));
+  $("#boardRows").innerHTML = rows.map((t) => `<tr>
+      <td class="dest">${t.name}</td><td>${t.from}</td><td>${t.dur}</td><td class="price">${t.price}</td>
+      <td><a class="board__btn" href="#booking" data-tour="${t.name}" data-date="${d.toISOString().slice(0, 10)}">Бронь</a></td></tr>`).join("");
+}
+$("#boardDays").addEventListener("click", (e) => { const b = e.target.closest(".board__day"); if (b) renderBoard(+b.dataset.i); });
+renderBoard(0);
+
+/* ===== Билеты ===== */
+function nextDates(t, n = 3) {
+  if (!t.days) return [];
+  const out = []; const d = new Date(); d.setHours(0, 0, 0, 0);
+  for (let k = 1; out.length < n && k < 30; k++) { d.setDate(d.getDate() + 1); if (goesOn(t, d)) out.push(`${DAY[d.getDay()]} ${fmtDate.format(d).replace(".", "")}`); }
+  return out;
+}
+function art([a, b]) {
+  return `<svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="300" height="200" fill="${b}"/>
+    <path d="M0 140L60 70 100 110 160 40 220 115 260 80 300 120V200H0z" fill="${a}"/><path d="M0 200V165l50-18 60 14 70-22 60 16 60-12v57z" fill="${b}" opacity=".85"/></svg>`;
+}
+const ul = (arr) => `<ul>${arr.map((x) => `<li>${x}</li>`).join("")}</ul>`;
+const nb = (s) => s.replace(/(\d) (?=\d{3}|₸)/g, "$1\u00a0");   // неразрывный пробел: «20 000 ₸» не разорвётся
+const TAG = { "1day": "1 день", multi: "2–3 дня", custom: "Под ключ" };
+
+function renderTickets(filter = "all") {
+  const list = TOURS.filter((t) => filter === "all" || t.type === filter);
+  $("#tickets").innerHTML = list.map((t) => {
+    const dates = nextDates(t);
+    return `<article class="ticket" id="t-${t.id}">
+      <div class="ticket__img">${t.img ? `<img src="${t.img}" alt="${t.name}" loading="lazy">` : art(t.hue)}<span class="ticket__tag">${TAG[t.type]}</span>${t.promo ? `<div class="stamp" aria-label="Акция 5+1"><span>Акция<b>5+1</b></span></div>` : ""}</div>
+      <div class="ticket__body">
+        <p class="mono ticket__from">${t.from} → ${t.place}</p>
+        <h3>${t.name}</h3>
+        <p class="ticket__desc">${t.desc}</p>
+        <div class="ticket__sched"><b>${t.schedule}</b>${dates.map((x) => `<span>${x}</span>`).join("")}</div>
+        ${t.included ? `<details><summary>Программа и что включено</summary><h4>Включено</h4>${ul(t.included)}<h4>Локации</h4>${ul(t.places)}${t.extra ? `<p>${t.extra}</p>` : ""}</details>` : ""}
+      </div>
+      <div class="stub">
+        <div class="price">${nb(t.price)}${t.note ? `<small>${nb(t.note)}</small>` : ""}</div>
+        <a class="btn" href="#booking" data-tour="${t.name}">Забронировать</a>
+        <span class="mono">${coord(t.ll)}</span>
+      </div>
+    </article>`;
+  }).join("") || `<p class="tickets-empty">Нет туров в этой категории</p>`;
+}
+document.querySelectorAll(".filter").forEach((btn) => btn.addEventListener("click", () => {
+  document.querySelectorAll(".filter").forEach((b) => b.setAttribute("aria-pressed", "false"));
+  btn.setAttribute("aria-pressed", "true");
+  renderTickets(btn.dataset.filter);
+}));
+renderTickets();
+
+/* Клик по точке на карте: подсветить билет */
+$("#map").addEventListener("click", (e) => {
+  const pin = e.target.closest(".pin"); if (!pin) return;
+  document.querySelector('.filter[data-filter="all"]').click();
+  requestAnimationFrame(() => {
+    const el = document.getElementById("t-" + pin.dataset.id);
+    document.querySelectorAll(".ticket.is-hit").forEach((x) => x.classList.remove("is-hit"));
+    if (el) { el.classList.add("is-hit"); setTimeout(() => el.classList.remove("is-hit"), 2400); }
+  });
+});
+
+/* ===== Отзывы: стрелки листают ленту ===== */
+document.querySelectorAll(".cards-nav button").forEach((b) => b.addEventListener("click", () => {
+  const c = $("#cards"); c.scrollBy({ left: +b.dataset.dir * (c.firstElementChild.offsetWidth + 20), behavior: "smooth" });
+}));
+
+/* ===== Посадочный талон: калькулятор + WhatsApp ===== */
+const select = $("#f-tour");
+select.innerHTML = [...TOURS.map((t) => t.name), "Новогодний тур", "Тур на заказ", "Мероприятие / тимбилдинг", "Аренда транспорта", "Подарочный сертификат"]
+  .map((s) => `<option>${s}</option>`).join("");
+const fields = ["f-tour", "f-date", "f-people", "f-name"].map((id) => document.getElementById(id));
+const money = (n) => n.toLocaleString("ru-RU") + " ₸";
+
+function calcTotal(name, people) {
+  const t = TOURS.find((x) => x.name === name);
+  if (!t || !/\d/.test(t.price)) return { text: "по запросу", note: "Стоимость рассчитает менеджер" };
+  const price = parseInt(t.price.replace(/\D/g, ""), 10);
+  const from = t.price.startsWith("от");
+  let paid = people, note = from ? "Минимальная цена, точная зависит от даты" : "";
+  if (t.promo && people >= 6) {
+    const free = Math.floor(people / 6);          // каждый 6-й бесплатно
+    paid -= free; note = `Акция 5+1: ${free} чел. бесплатно, экономия ${money(free * price)}`;
+  }
+  return { text: (from ? "от " : "") + money(paid * price), note };
+}
+
+function update() {
+  const [tour, date, people, name] = fields.map((f) => f.value.trim());
+  const n = Math.max(1, parseInt(people, 10) || 1);
+  const total = calcTotal(tour, n);
+  $("#total").textContent = total.text; $("#totalNote").textContent = total.note;
+  const t = TOURS.find((x) => x.name === tour);
+  document.querySelector(".pass__head .mono").textContent = t ? `${t.from} → ${t.place}` : "Астана → ?";
+  let text = `Здравствуйте! Хочу забронировать: ${tour}.`;
+  if (date) text += ` Дата: ${new Date(date + "T00:00").toLocaleDateString("ru-RU")}.`;
+  text += ` Человек: ${n}.`;
+  if (/\d/.test(total.text)) text += ` Сумма по сайту: ${total.text}.`;
+  if (name) text += ` Меня зовут ${name}.`;
+  $("#waLink").href = "https://wa.me/77001940940?text=" + encodeURIComponent(text);
+}
+fields.forEach((f) => f.addEventListener("input", update));
+
+/* Любая кнопка с data-tour заполняет талон (и дату, если нажали на табло) */
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-tour]"); if (!b) return;
+  select.value = b.dataset.tour;
+  if (b.dataset.date) $("#f-date").value = b.dataset.date;
+  update();
+});
+update();
+</script>
+</body>
+</html>
